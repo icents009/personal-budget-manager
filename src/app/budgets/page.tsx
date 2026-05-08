@@ -171,12 +171,12 @@ export default function BudgetsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex rounded-xl overflow-hidden border border-slate-200 bg-white w-fit flex-wrap">
+      <div className="flex flex-wrap gap-2">
         {(["budgets", "50-30-20", "per-income"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium transition ${activeTab === tab ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+            className={`px-4 py-2 text-sm font-medium rounded-xl border transition ${activeTab === tab ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}
           >
             {tab === "budgets" ? "📊 Category Budgets" : tab === "50-30-20" ? "⚖️ 50/30/20 Rule" : "💰 Per Income"}
           </button>
