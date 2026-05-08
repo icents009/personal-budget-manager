@@ -305,38 +305,51 @@ export default function BudgetsPage() {
           {breakdown.map((item) => {
             const diff = item.actual - item.recommended;
             const isOver = diff > 0;
+            const isSavings = item.type === "saving_debt";
+            // For savings: over target = good (dark green). For needs/wants: over = bad (red).
+            const isGood = isSavings ? isOver : !isOver;
+            const cardBg = isSavings && isOver ? "bg-white border-green-300" : "bg-white border-slate-100";
+            const actualColor = isGood ? (isSavings && isOver ? "text-green-700 font-bold" : "text-emerald-600") : "text-red-600";
+            const diffColor = isGood ? (isSavings && isOver ? "text-green-700 font-bold" : "text-emerald-600") : "text-red-600";
+
             return (
-              <div key={item.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+              <div key={item.label} className={`rounded-2xl border shadow-sm p-4 ${cardBg}`}>
                 <div className="flex justify-between items-center mb-3">
                   <div>
                     <p className="font-semibold text-slate-800">{item.label} ({item.target}%)</p>
                     <p className="text-xs text-slate-400 mt-0.5">Recommended: {formatCurrency(item.recommended, currency)}</p>
                   </div>
-                  <Badge variant={isOver ? "danger" : "success"}>
-                    {isOver ? `+${formatCurrency(diff, currency)} over` : `${formatCurrency(Math.abs(diff), currency)} under`}
-                  </Badge>
+                  {isSavings ? (
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isOver ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                      {isOver ? `🎉 +${formatCurrency(diff, currency)} extra saved` : `⚠️ ${formatCurrency(Math.abs(diff), currency)} under`}
+                    </span>
+                  ) : (
+                    <Badge variant={isOver ? "danger" : "success"}>
+                      {isOver ? `+${formatCurrency(diff, currency)} over` : `${formatCurrency(Math.abs(diff), currency)} under`}
+                    </Badge>
+                  )}
                 </div>
 
-                <ProgressBar value={item.recommended > 0 ? pct(item.actual, item.recommended) : 0} color={item.color} />
+                <ProgressBar value={item.recommended > 0 ? pct(item.actual, item.recommended) : 0} color={isSavings && isOver ? "bg-green-600" : item.color} />
 
                 <div className="grid grid-cols-3 gap-3 mt-3 text-center">
                   <div className="bg-slate-50 rounded-xl p-2">
                     <p className="text-xs text-slate-400">Recommended</p>
                     <p className="font-semibold text-sm text-slate-700">{formatCurrency(item.recommended, currency)}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-xl p-2">
+                  <div className={`rounded-xl p-2 ${isSavings && isOver ? "bg-green-50" : "bg-slate-50"}`}>
                     <p className="text-xs text-slate-400">Actual</p>
-                    <p className={`font-semibold text-sm ${isOver ? "text-red-600" : "text-emerald-600"}`}>{formatCurrency(item.actual, currency)}</p>
+                    <p className={`font-semibold text-sm ${actualColor}`}>{formatCurrency(item.actual, currency)}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-xl p-2">
+                  <div className={`rounded-xl p-2 ${isSavings && isOver ? "bg-green-50" : "bg-slate-50"}`}>
                     <p className="text-xs text-slate-400">Difference</p>
-                    <p className={`font-semibold text-sm ${isOver ? "text-red-600" : "text-emerald-600"}`}>
+                    <p className={`font-semibold text-sm ${diffColor}`}>
                       {isOver ? "+" : "-"}{formatCurrency(Math.abs(diff), currency)}
                     </p>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 mt-3 bg-slate-50 p-2.5 rounded-xl">{item.advice}</p>
+                <p className={`text-xs mt-3 p-2.5 rounded-xl ${isSavings && isOver ? "bg-green-50 text-green-700" : "bg-slate-50 text-slate-500"}`}>{item.advice}</p>
               </div>
             );
           })}
