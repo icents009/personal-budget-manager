@@ -39,7 +39,7 @@ export default function BudgetsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingBudgetId, setEditingBudgetId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"budgets" | "50-30-20">("budgets");
+  const [activeTab, setActiveTab] = useState<"budgets" | "50-30-20" | "per-income">("budgets");
 
   const currency = settings?.defaultCurrency ?? "NGN";
   const monthOptions = generateMonthOptions(12);
@@ -108,6 +108,34 @@ export default function BudgetsPage() {
     ];
   }, [monthExpenses, categories, totalIncome, settings, currency, contributions, debtPayments, selectedMonth]);
 
+  // Per-income breakdown: each income transaction → its own 50/30/20 split
+  const incomeTransactions = useMemo(
+    () => transactions.filter((t) => t.type === "income" && isInMonth(t.date, selectedMonth)),
+    [transactions, selectedMonth]
+  );
+
+  const perIncomeBreakdown = useMemo(() => {
+    const needsPct = (settings?.needsPercentage ?? 50) / 100;
+    const wantsPct = (settings?.wantsPercentage ?? 30) / 100;
+    const savingsPct = (settings?.savingsPercentage ?? 20) / 100;
+    return incomeTransactions.map((t) => {
+      const cat = categories.find((c) => c.id === t.categoryId);
+      return {
+        id: t.id,
+        source: cat?.name ?? "Income",
+        icon: cat?.icon ?? "💰",
+        date: t.date,
+        amount: t.amount,
+        needs: t.amount * needsPct,
+        wants: t.amount * wantsPct,
+        savings: t.amount * savingsPct,
+        needsPct: settings?.needsPercentage ?? 50,
+        wantsPct: settings?.wantsPercentage ?? 30,
+        savingsPct: settings?.savingsPercentage ?? 20,
+      };
+    });
+  }, [incomeTransactions, categories, settings]);
+
   function openAdd() {
     setEditingBudgetId(null);
     reset({ currency });
@@ -143,19 +171,85 @@ export default function BudgetsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex rounded-xl overflow-hidden border border-slate-200 bg-white w-fit">
-        {(["budgets", "50-30-20"] as const).map((tab) => (
+      <div className="flex rounded-xl overflow-hidden border border-slate-200 bg-white w-fit flex-wrap">
+        {(["budgets", "50-30-20", "per-income"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-sm font-medium transition ${activeTab === tab ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}
           >
-            {tab === "budgets" ? "📊 Category Budgets" : "⚖️ 50/30/20 Rule"}
+            {tab === "budgets" ? "📊 Category Budgets" : tab === "50-30-20" ? "⚖️ 50/30/20 Rule" : "💰 Per Income"}
           </button>
         ))}
       </div>
 
-      {activeTab === "budgets" ? (
+      {activeTab === "per-income" ? (
+        /* Per Income tab */
+        <div className="space-y-4">
+          {perIncomeBreakdown.length === 0 ? (
+            <EmptyState
+              icon="💰"
+              title="No income this month"
+              description={`Add income transactions for ${monthToLabel(selectedMonth)} to see per-income 50/30/20 breakdowns.`}
+            />
+          ) : (
+            <>
+              {/* Summary totals card */}
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+                <p className="text-sm font-semibold text-indigo-800 mb-3">
+                  📊 Total for {monthToLabel(selectedMonth)} — {perIncomeBreakdown.length} income source{perIncomeBreakdown.length > 1 ? "s" : ""}
+                </p>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  {[
+                    { label: `Needs (${perIncomeBreakdown[0]?.needsPct}%)`, value: perIncomeBreakdown.reduce((s, i) => s + i.needs, 0), color: "text-blue-700" },
+                    { label: `Wants (${perIncomeBreakdown[0]?.wantsPct}%)`, value: perIncomeBreakdown.reduce((s, i) => s + i.wants, 0), color: "text-violet-700" },
+                    { label: `Savings (${perIncomeBreakdown[0]?.savingsPct}%)`, value: perIncomeBreakdown.reduce((s, i) => s + i.savings, 0), color: "text-emerald-700" },
+                  ].map((col) => (
+                    <div key={col.label} className="bg-white rounded-xl p-2 shadow-sm">
+                      <p className="text-xs text-slate-400">{col.label}</p>
+                      <p className={`font-bold text-sm ${col.color}`}>{formatCurrency(col.value, currency)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Individual income cards */}
+              {perIncomeBreakdown.map((item) => (
+                <div key={item.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{item.icon}</span>
+                      <div>
+                        <p className="font-semibold text-slate-800">{item.source}</p>
+                        <p className="text-xs text-slate-400">{new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                      </div>
+                    </div>
+                    <p className="font-bold text-slate-800">{formatCurrency(item.amount, currency)}</p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-blue-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-blue-500 font-medium">🏠 Needs</p>
+                      <p className="text-xs text-blue-400 mt-0.5">{item.needsPct}%</p>
+                      <p className="font-bold text-sm text-blue-700 mt-1">{formatCurrency(item.needs, currency)}</p>
+                    </div>
+                    <div className="bg-violet-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-violet-500 font-medium">🎯 Wants</p>
+                      <p className="text-xs text-violet-400 mt-0.5">{item.wantsPct}%</p>
+                      <p className="font-bold text-sm text-violet-700 mt-1">{formatCurrency(item.wants, currency)}</p>
+                    </div>
+                    <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                      <p className="text-xs text-emerald-500 font-medium">💎 Savings</p>
+                      <p className="text-xs text-emerald-400 mt-0.5">{item.savingsPct}%</p>
+                      <p className="font-bold text-sm text-emerald-700 mt-1">{formatCurrency(item.savings, currency)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      ) : activeTab === "budgets" ? (
         budgetRows.length === 0 ? (
           <EmptyState
             icon="📊"
