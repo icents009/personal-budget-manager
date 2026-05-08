@@ -6,7 +6,7 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTransactions, useCategories, useBudgets, useSettings } from "@/hooks/useDb";
+import { useTransactions, useCategories, useBudgets, useSettings, useSavingsContributions, useDebtPayments } from "@/hooks/useDb";
 import {
   isInMonth, formatCurrency, getCurrentMonth, generateMonthOptions, monthToLabel, pct
 } from "@/lib/utils";
@@ -31,6 +31,8 @@ export default function BudgetsPage() {
   const { categories } = useCategories();
   const { budgets, upsertBudget, deleteBudget } = useBudgets();
   const { settings } = useSettings();
+  const { contributions } = useSavingsContributions();
+  const { payments: debtPayments } = useDebtPayments();
   const { showToast } = useToast();
 
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
@@ -85,9 +87,17 @@ export default function BudgetsPage() {
     const wants = monthExpenses
       .filter((t) => categories.find((c) => c.id === t.categoryId)?.type === "want")
       .reduce((s, t) => s + t.amount, 0);
-    const savings = monthExpenses
+    // Savings/Debt actual = saving_debt expense categories + savings goal contributions + debt payments
+    const savingsFromExpenses = monthExpenses
       .filter((t) => categories.find((c) => c.id === t.categoryId)?.type === "saving_debt")
       .reduce((s, t) => s + t.amount, 0);
+    const savingsFromContributions = contributions
+      .filter((c) => isInMonth(c.date, selectedMonth))
+      .reduce((s, c) => s + c.amount, 0);
+    const savingsFromDebtPayments = debtPayments
+      .filter((p) => isInMonth(p.date, selectedMonth))
+      .reduce((s, p) => s + p.amount, 0);
+    const savings = savingsFromExpenses + savingsFromContributions + savingsFromDebtPayments;
     const recNeeds = totalIncome * ((settings?.needsPercentage ?? 50) / 100);
     const recWants = totalIncome * ((settings?.wantsPercentage ?? 30) / 100);
     const recSavings = totalIncome * ((settings?.savingsPercentage ?? 20) / 100);
@@ -96,7 +106,7 @@ export default function BudgetsPage() {
       { label: "Wants", type: "want", target: settings?.wantsPercentage ?? 30, actual: wants, recommended: recWants, color: "bg-violet-500", advice: wants > recWants ? "You're overspending on wants. Cut back on entertainment and shopping." : "Your wants spending is within target. 👍" },
       { label: "Savings/Debt", type: "saving_debt", target: settings?.savingsPercentage ?? 20, actual: savings, recommended: recSavings, color: "bg-emerald-500", advice: savings < recSavings ? `You're saving below your ${settings?.savingsPercentage ?? 20}% target. Try to save ${formatCurrency(recSavings - savings, currency)} more.` : "Great savings discipline! 🎉" },
     ];
-  }, [monthExpenses, categories, totalIncome, settings, currency]);
+  }, [monthExpenses, categories, totalIncome, settings, currency, contributions, debtPayments, selectedMonth]);
 
   function openAdd() {
     setEditingBudgetId(null);
