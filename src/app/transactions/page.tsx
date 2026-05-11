@@ -237,8 +237,8 @@ export default function TransactionsPage() {
                   <p className="text-xs text-slate-400">{tx.paymentMethod}</p>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                {/* Actions — always visible on mobile, hover-reveal on desktop */}
+                <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition">
                   <button onClick={() => openEdit(tx)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 text-sm">✏️</button>
                   <button onClick={() => setDeleteId(tx.id!)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 text-sm">🗑️</button>
                 </div>
