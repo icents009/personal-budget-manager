@@ -40,6 +40,61 @@ export default function SettingsPage() {
   const [deleteCatId, setDeleteCatId] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // PIN state
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinStep, setPinStep] = useState<"enter" | "confirm">("enter");
+  const [pinInput, setPinInput] = useState("");
+  const [pinFirst, setPinFirst] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [removePinConfirm, setRemovePinConfirm] = useState(false);
+
+  function openSetPin() {
+    setPinStep("enter");
+    setPinInput("");
+    setPinFirst("");
+    setPinError("");
+    setShowPinModal(true);
+  }
+
+  function handlePinKey(key: string) {
+    if (pinInput.length < 4) {
+      const next = pinInput + key;
+      setPinInput(next);
+      setPinError("");
+      if (next.length === 4) {
+        if (pinStep === "enter") {
+          setPinFirst(next);
+          setPinStep("confirm");
+          setPinInput("");
+        } else {
+          if (next === pinFirst) {
+            updateSettings({ pin: next }).then(() => {
+              showToast("PIN set successfully! 🔐");
+              setShowPinModal(false);
+            });
+          } else {
+            setPinError("PINs don't match. Try again.");
+            setPinStep("enter");
+            setPinInput("");
+            setPinFirst("");
+          }
+        }
+      }
+    }
+  }
+
+  function handlePinDelete() {
+    setPinInput((p) => p.slice(0, -1));
+    setPinError("");
+  }
+
+  async function handleRemovePin() {
+    await updateSettings({ pin: undefined });
+    sessionStorage.removeItem("budget_pin_unlocked");
+    showToast("PIN removed", "info");
+    setRemovePinConfirm(false);
+  }
+
   const catForm = useForm<CategoryForm>({
     resolver: zodResolver(categorySchema),
     defaultValues: { type: "want", icon: "📦", color: "#6b7280" },
@@ -138,6 +193,31 @@ export default function SettingsPage() {
                 <option key={c.code} value={c.code}>{c.code} — {c.name} ({c.symbol})</option>
               ))}
             </Select>
+          </div>
+
+          {/* PIN Lock */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-slate-800 text-sm">🔐 App PIN Lock</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {settings.pin ? "PIN is enabled — app locks on every new session." : "No PIN set — anyone can open this app."}
+                </p>
+              </div>
+              {settings.pin ? (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={openSetPin}>Change PIN</Button>
+                  <Button size="sm" variant="outline" onClick={() => setRemovePinConfirm(true)} className="text-red-500 border-red-200 hover:bg-red-50">Remove</Button>
+                </div>
+              ) : (
+                <Button size="sm" onClick={openSetPin}>Set PIN</Button>
+              )}
+            </div>
+            {settings.pin && (
+              <p className="text-xs bg-indigo-50 text-indigo-700 rounded-xl px-3 py-2">
+                ✅ PIN is active. You&apos;ll be asked to enter it each time you open the app in a new browser session.
+              </p>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-4">
@@ -311,6 +391,56 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* PIN Setup Modal */}
+      <Modal open={showPinModal} onClose={() => setShowPinModal(false)} title={pinStep === "enter" ? "Set New PIN" : "Confirm PIN"}>
+        <div className="flex flex-col items-center space-y-4 py-2">
+          <p className="text-sm text-slate-500">
+            {pinStep === "enter" ? "Enter a 4-digit PIN" : "Re-enter your PIN to confirm"}
+          </p>
+
+          {/* PIN dots */}
+          <div className="flex gap-4 my-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all ${i < pinInput.length ? "bg-indigo-600 border-indigo-600 scale-110" : "bg-transparent border-slate-300"}`} />
+            ))}
+          </div>
+
+          {pinError && <p className="text-red-500 text-sm">{pinError}</p>}
+
+          {/* Numpad */}
+          <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
+            {[1,2,3,4,5,6,7,8,9].map((n) => (
+              <button key={n} onClick={() => handlePinKey(String(n))}
+                className="h-14 rounded-2xl bg-slate-100 hover:bg-indigo-100 active:bg-indigo-200 text-slate-800 text-xl font-semibold transition-all active:scale-95">
+                {n}
+              </button>
+            ))}
+            <div />
+            <button onClick={() => handlePinKey("0")}
+              className="h-14 rounded-2xl bg-slate-100 hover:bg-indigo-100 active:bg-indigo-200 text-slate-800 text-xl font-semibold transition-all active:scale-95">
+              0
+            </button>
+            <button onClick={handlePinDelete}
+              className="h-14 rounded-2xl bg-slate-100 hover:bg-red-100 active:bg-red-200 text-slate-800 text-xl font-semibold transition-all active:scale-95">
+              ⌫
+            </button>
+          </div>
+
+          <Button variant="outline" onClick={() => setShowPinModal(false)} className="w-full">Cancel</Button>
+        </div>
+      </Modal>
+
+      {/* Remove PIN confirm */}
+      <ConfirmDialog
+        open={removePinConfirm}
+        onClose={() => setRemovePinConfirm(false)}
+        onConfirm={handleRemovePin}
+        title="Remove PIN?"
+        message="Anyone with access to this device will be able to open the app without a PIN."
+        confirmLabel="Yes, Remove PIN"
+        confirmVariant="danger"
+      />
 
       {/* Confirm import */}
       <ConfirmDialog

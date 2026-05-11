@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { ToastProvider } from "@/components/ui/Toast";
 import { InitDb } from "@/components/InitDb";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { PinLock } from "@/components/PinLock";
 
 // Using system font stack instead of Google Fonts so the app builds offline
 // and works without an internet connection during deployment
@@ -40,22 +41,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Register service worker for offline/PWA support */}
           <ServiceWorker />
 
-          {/* Desktop sidebar — hidden on mobile */}
-          <Sidebar />
+          {/* PIN lock — shows over everything if a PIN is set */}
+          <PinLock>
+            {/* Desktop sidebar — hidden on mobile */}
+            <Sidebar />
 
-          {/* Main content — shifts right on desktop to make room for sidebar */}
-          <div className="md:pl-56 min-h-screen flex flex-col">
-            {/* Mobile top header */}
-            <Header />
+            {/* Main content — shifts right on desktop to make room for sidebar */}
+            <div className="md:pl-56 min-h-screen flex flex-col">
+              {/* Mobile top header */}
+              <Header />
 
-            {/* Page content */}
-            <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 max-w-5xl w-full mx-auto">
-              {children}
-            </main>
-          </div>
+              {/* Page content */}
+              <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 max-w-5xl w-full mx-auto">
+                {children}
+              </main>
+            </div>
 
-          {/* Mobile bottom navigation */}
-          <BottomNav />
+            {/* Mobile bottom navigation */}
+            <BottomNav />
+          </PinLock>
         </ToastProvider>
       </body>
     </html>

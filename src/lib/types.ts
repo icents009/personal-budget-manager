@@ -165,6 +165,7 @@ export interface AppSettings {
   wantsPercentage: number; // default 30
   savingsPercentage: number; // default 20
   emergencyFundGoalId?: number; // link to the savings goal used as emergency fund
+  pin?: string; // optional 4-digit PIN for app lock
   createdAt: string;
   updatedAt: string;
 }
